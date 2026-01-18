@@ -1,0 +1,36 @@
+@media print {
+  /* Oculta todo lo que no sea el CV */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Muestra solo el "papel" */
+  #cv-paper,
+  #cv-paper * {
+    visibility: visible;
+  }
+
+  #cv-paper {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+
+/* ✅ Estilos propios SIN tocar clases base de DaisyUI */
+.app-card {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ✅ Solo afecta tus bloques de JSON */
+.json-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  line-height: 1.45;
+}
+
+
