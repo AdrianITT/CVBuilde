@@ -1,4 +1,6 @@
 @media print {
+  html, body, #root { height: 100%; }
+
   /* Oculta todo lo que no sea el CV */
   body * {
     visibility: hidden;

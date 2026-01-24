@@ -1,3 +1,5 @@
+import React from "react";
+
 export default function CvPreview({ data, onClose }) {
   const p = data?.personal ?? {};
   const skills = Array.isArray(data?.skills) ? data.skills : [];
@@ -14,54 +16,54 @@ export default function CvPreview({ data, onClose }) {
   };
 
   const downloadPDF = () => {
-    // 1) Tomamos el HTML del CV
     const cvEl = document.getElementById("cv-paper");
     if (!cvEl) return;
 
-    // 2) Estilos “Harvard” inline para impresión consistente
     const printStyles = `
     <style>
-    @page { size: A4; margin: 14mm; }
-    body { font-family: Arial, Helvetica, sans-serif; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .cv { max-width: 780px; margin: 0 auto; }
+      @page { size: A4; margin: 14mm; }
+      body { font-family: Arial, Helvetica, sans-serif; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .cv { max-width: 780px; margin: 0 auto; }
 
-    .headline { font-size: 12px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 6px; }
-    .name { font-size: 28px; font-weight: 800; letter-spacing: 0.2px; line-height: 1.05; }
-    .meta { margin-top: 7px; font-size: 11.5px; line-height: 1.4; }
-    .meta a { color: #111; text-decoration: none; }
-    .meta span { display: inline-block; margin-right: 12px; }
+      .headline { font-size: 12px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 6px; }
+      .name { font-size: 28px; font-weight: 800; letter-spacing: 0.2px; line-height: 1.05; }
+      .meta { margin-top: 7px; font-size: 11.5px; line-height: 1.4; }
+      .meta a { color: #111; text-decoration: none; }
+      .meta span { display: inline-block; margin-right: 12px; }
 
-    .divider { border: 0; border-top: 1px solid #111; margin: 12px 0 10px; }
+      .divider { border: 0; border-top: 1px solid #111; margin: 12px 0 10px; }
 
-    .section { margin-top: 12px; }
-    .section-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.9px; margin-bottom: 6px; }
+      .section { margin-top: 12px; }
+      .section-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.9px; margin-bottom: 6px; }
 
-    .row { display: flex; justify-content: space-between; gap: 14px; }
-    .left { flex: 1; }
-    .right { white-space: nowrap; font-size: 11.5px; }
+      .row { display: flex; justify-content: space-between; gap: 14px; }
+      .left { flex: 1; }
+      .right { white-space: nowrap; font-size: 11.5px; }
 
-    .role { font-weight: 800; font-size: 12px; }
-    .sub { font-size: 11.5px; margin-top: 2px; color: #333; }
+      .role { font-weight: 800; font-size: 12px; }
+      .sub { font-size: 11.5px; margin-top: 2px; color: #333; }
 
-    .text { font-size: 11.5px; line-height: 1.55; white-space: pre-line; }
+      .text { font-size: 11.5px; line-height: 1.55; white-space: pre-line; }
 
-    .skills-grid { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; font-size: 11.5px; line-height: 1.55; }
-    .skills-label { font-weight: 800; }
+      .skills-grid { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; font-size: 11.5px; line-height: 1.55; }
+      .skills-label { font-weight: 800; }
+      /* FIX: evitar que texto largo rompa el grid */
+      .skills-items { overflow-wrap: anywhere; word-break: break-word; }
+      .skills-grid > div { min-width: 0; }
 
-    .bullets { margin: 6px 0 0; padding-left: 18px; }
-    .bullets li { margin: 3px 0; font-size: 11.5px; line-height: 1.45; }
+      .bullets { margin: 6px 0 0; padding-left: 18px; }
+      .bullets li { margin: 3px 0; font-size: 11.5px; line-height: 1.45; }
 
-    /* evitar cortes feos */
-    .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+      .avoid-break { break-inside: avoid; page-break-inside: avoid; }
 
-    /* más compacto en impresión */
-    p { margin: 0; }
+      p { margin: 0; }
     </style>
     `;
 
-
-    // 3) Abrimos ventana nueva para imprimir
-    const w = window.open("", "_blank", "width=900,height=650");
+    
+    const key = `cv_print_${Date.now()}`;
+    sessionStorage.setItem(key, cvEl.outerHTML);
+    const w = window.open(`/cv/print?key=${key}`, "_blank");
     if (!w) return;
 
     w.document.open();
@@ -88,7 +90,6 @@ export default function CvPreview({ data, onClose }) {
   return (
     <div className="modal modal-open">
       <div className="modal-box max-w-5xl">
-        {/* barra botones */}
         <div className="flex justify-between items-center gap-2">
           <h3 className="font-bold text-lg">Vista previa CV (Harvard)</h3>
           <div className="flex gap-2">
@@ -101,24 +102,49 @@ export default function CvPreview({ data, onClose }) {
           </div>
         </div>
 
-        {/* ===== Harvard / ATS friendly ===== */}
         <div id="cv-paper" className="cv bg-white text-black rounded-xl p-8 mt-4">
-          {/* Header */}
           <div className="name">{p.nombreCompleto || "Tu Nombre"}</div>
 
-            <div className="meta">
+          <div className="meta">
             {p.ciudadEstado && <span>{p.ciudadEstado}</span>}
-            {p.telefono && <span><a href={`tel:${p.telefono}`}>{p.telefono}</a></span>}
-            {p.correo && <span><a href={`mailto:${p.correo}`}>{p.correo}</a></span>}
-            {p.linkedin && <span>LinkedIn: <a href={p.linkedin} target="_blank" rel="noreferrer">{p.linkedin}</a></span>}
-            {p.github && <span>GitHub: <a href={p.github} target="_blank" rel="noreferrer">{p.github}</a></span>}
-            {p.web && <span>Web: <a href={p.web} target="_blank" rel="noreferrer">{p.web}</a></span>}
-            </div>
-
+            {p.telefono && (
+              <span>
+                <a href={`tel:${p.telefono}`}>{p.telefono}</a>
+              </span>
+            )}
+            {p.correo && (
+              <span>
+                <a href={`mailto:${p.correo}`}>{p.correo}</a>
+              </span>
+            )}
+            {p.linkedin && (
+              <span>
+                LinkedIn:{" "}
+                <a href={p.linkedin} target="_blank" rel="noreferrer">
+                  {p.linkedin}
+                </a>
+              </span>
+            )}
+            {p.github && (
+              <span>
+                GitHub:{" "}
+                <a href={p.github} target="_blank" rel="noreferrer">
+                  {p.github}
+                </a>
+              </span>
+            )}
+            {p.web && (
+              <span>
+                Web:{" "}
+                <a href={p.web} target="_blank" rel="noreferrer">
+                  {p.web}
+                </a>
+              </span>
+            )}
+          </div>
 
           <hr className="divider" />
 
-          {/* Resumen */}
           {data?.resumen?.trim() ? (
             <section className="section avoid-break">
               <div className="section-title">Resumen</div>
@@ -126,27 +152,29 @@ export default function CvPreview({ data, onClose }) {
             </section>
           ) : null}
 
-          {/* Skills (Harvard estilo: línea) */}
-            {skills.length ? (
+          {/* ===== Skills FIX ===== */}
+          {skills.length ? (
             <section className="section avoid-break">
-                <div className="section-title">Skills</div>
+              <div className="section-title">Skills</div>
 
-                {(() => {
+              {(() => {
                 const norm = (x) => (x || "").toLowerCase();
 
                 const buckets = {
-                    "Languages": [],
-                    "Frameworks": [],
-                    "Tools": [],
-                    "Other": [],
+                  Languages: [],
+                  Frameworks: [],
+                  Tools: [],
+                  Other: [],
                 };
 
-                const frameworksKeywords = ["react", "next", "django", "flask", "node", "express", "vue", "angular", ".net", "spring"];
-                const toolsKeywords = ["git", "docker", "aws", "linux", "mysql", "postgres", "sql", "vite", "webpack", "figma"];
+                const frameworksKeywords = ["react", "next", "django", "flask", "express", "vue", "angular", ".net", "spring"];
+                const toolsKeywords = ["git", "docker", "aws", "linux", "mysql", "postgres", "sql", "vite", "webpack", "figma", "postman", "node"];
 
+                // FIX 1: filtrar skills con texto gigante (ej: resumen metido en skills)
                 skills
-                    .filter((s) => (s?.nombre ?? "").trim())
-                    .forEach((s) => {
+                  .filter((s) => (s?.nombre ?? "").trim())
+                  .filter((s) => (s.nombre ?? "").trim().length <= 40)
+                  .forEach((s) => {
                     const n = norm(s.nombre);
                     const label = `${s.nombre}${s.nivel ? ` (${s.nivel})` : ""}`;
 
@@ -154,24 +182,24 @@ export default function CvPreview({ data, onClose }) {
                     else if (toolsKeywords.some((k) => n.includes(k))) buckets.Tools.push(label);
                     else if (["javascript", "typescript", "python", "java", "c#", "c++", "go"].some((k) => n.includes(k))) buckets.Languages.push(label);
                     else buckets.Other.push(label);
-                    });
+                  });
 
                 const rows = Object.entries(buckets).filter(([, arr]) => arr.length);
 
                 return (
-                    <div className="skills-grid">
+                  <div className="skills-grid">
+                    {/* FIX 2: NO usar className="contents" / display:contents */}
                     {rows.map(([title, arr]) => (
-                        <div key={title} className="contents">
+                      <React.Fragment key={title}>
                         <div className="skills-label">{title}:</div>
-                        <div>{arr.join(" • ")}</div>
-                        </div>
+                        <div className="skills-items">{arr.join(" • ")}</div>
+                      </React.Fragment>
                     ))}
-                    </div>
+                  </div>
                 );
-                })()}
+              })()}
             </section>
-            ) : null}
-
+          ) : null}
 
           {/* Experiencia */}
           {experiencia.length ? (
@@ -183,13 +211,7 @@ export default function CvPreview({ data, onClose }) {
                   const inicio = formatMes(exp.fechaInicio);
                   const fin = exp.actualmente ? "Actual" : formatMes(exp.fechaFin);
 
-                  const vacio =
-                    !exp.puesto?.trim() &&
-                    !exp.empresa?.trim() &&
-                    !exp.ciudad?.trim() &&
-                    !inicio &&
-                    !fin;
-
+                  const vacio = !exp.puesto?.trim() && !exp.empresa?.trim() && !exp.ciudad?.trim() && !inicio && !fin;
                   if (vacio) return null;
 
                   const titulo = `${exp.puesto || "Puesto"}${exp.empresa ? `, ${exp.empresa}` : ""}`;
@@ -200,12 +222,9 @@ export default function CvPreview({ data, onClose }) {
                       <div className="row">
                         <div className="left">
                           <div style={{ fontWeight: 700, fontSize: "12px" }}>{titulo}</div>
-
                           {lugar ? <div className="sub">{lugar}</div> : null}
                         </div>
-                        <div className="right">
-                          {inicio || fin ? `${inicio} – ${fin}` : ""}
-                        </div>
+                        <div className="right">{inicio || fin ? `${inicio} – ${fin}` : ""}</div>
                       </div>
 
                       {Array.isArray(exp.logros) && exp.logros.some((l) => l.trim()) ? (
@@ -254,9 +273,7 @@ export default function CvPreview({ data, onClose }) {
                           <div className="role">{titulo}</div>
                           {lugar ? <div className="sub">{lugar}</div> : null}
                         </div>
-                        <div className="right">
-                          {inicio || fin ? `${inicio} – ${fin}` : ""}
-                        </div>
+                        <div className="right">{inicio || fin ? `${inicio} – ${fin}` : ""}</div>
                       </div>
 
                       {edu.detalles?.trim() ? (
@@ -275,3 +292,4 @@ export default function CvPreview({ data, onClose }) {
     </div>
   );
 }
+  
