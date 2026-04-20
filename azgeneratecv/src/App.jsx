@@ -3,11 +3,17 @@ import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import CardSkill from "./componets/CardSkill.jsx";
 import CvPreview from "./componets/CvPreview.jsx";
+import SpellChecker from "./componets/SpellChecker.jsx";
+import StyleCV, { DEFAULT_CV_STYLE_ID, normalizeCvStyleId } from "./componets/StyleCV.jsx";
 
 const STORAGE_KEY = "cv_v1";
+const PROFILES_STORAGE_KEY = "cv_profiles_v1";
+const PROFILE_FALLBACK_NAME = "CV Principal";
 const fileInputId = "cv-json-import";
 
 const initialCV = {
+  templateStyle: DEFAULT_CV_STYLE_ID,
+  templateSettings: {},
   personal: {
     nombreCompleto: "",
     ciudadEstado: "",
@@ -16,6 +22,7 @@ const initialCV = {
     github: "",
     web: "",
     linkedin: "",
+    foto: "",
   },
   resumen: "",
   experiencia: [
@@ -94,6 +101,8 @@ function normalizeCv(raw, initialCV, makeId) {
   return {
     ...initialCV,
     ...src,
+    templateStyle: normalizeCvStyleId(src.templateStyle),
+    templateSettings: src.templateSettings && typeof src.templateSettings === "object" ? src.templateSettings : {},
     personal: { ...initialCV.personal, ...(src.personal ?? {}) },
     resumen: src.resumen ?? "",
     skills: fixedSkills,
@@ -102,30 +111,111 @@ function normalizeCv(raw, initialCV, makeId) {
   };
 }
 
-export default function App() {
-  const [cvData, setCvData] = useState(initialCV);
-  const [openPreview, setOpenPreview] = useState(false);
+function createCvProfile(name, data = initialCV) {
+  return {
+    id: makeId(),
+    name: name?.trim() || PROFILE_FALLBACK_NAME,
+    updatedAt: new Date().toISOString(),
+    data: normalizeCv(data, initialCV, makeId),
+  };
+}
 
-  // ===== Load storage =====
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (!saved) return;
-      const parsed = JSON.parse(saved);
-      setCvData(normalizeCv(parsed, initialCV, makeId));
-    } catch (error) {
-      console.error("Error leyendo localStorage:", error);
+function normalizeProfile(raw, index = 0) {
+  const fallbackName = index === 0 ? PROFILE_FALLBACK_NAME : `CV ${index + 1}`;
+  const sourceData = raw?.data ?? raw?.cvData ?? raw ?? initialCV;
+
+  return {
+    id: String(raw?.id || makeId()),
+    name: String(raw?.name || fallbackName),
+    updatedAt: raw?.updatedAt || new Date().toISOString(),
+    data: normalizeCv(sourceData, initialCV, makeId),
+  };
+}
+
+function loadProfilesState() {
+  try {
+    const savedProfiles = localStorage.getItem(PROFILES_STORAGE_KEY);
+    if (savedProfiles) {
+      const parsed = JSON.parse(savedProfiles);
+      const normalizedProfiles = Array.isArray(parsed?.profiles)
+        ? parsed.profiles.map((profile, index) => normalizeProfile(profile, index))
+        : [];
+
+      if (normalizedProfiles.length) {
+        const activeProfileId = normalizedProfiles.some((profile) => profile.id === parsed.activeProfileId)
+          ? parsed.activeProfileId
+          : normalizedProfiles[0].id;
+        const activeProfile = normalizedProfiles.find((profile) => profile.id === activeProfileId) ?? normalizedProfiles[0];
+
+        return {
+          profiles: normalizedProfiles,
+          activeProfileId,
+          profileName: activeProfile.name,
+          cvData: activeProfile.data,
+        };
+      }
     }
-  }, []);
+
+    const savedLegacyCv = localStorage.getItem(STORAGE_KEY);
+    const legacyCv = savedLegacyCv ? normalizeCv(JSON.parse(savedLegacyCv), initialCV, makeId) : initialCV;
+    const profile = createCvProfile(PROFILE_FALLBACK_NAME, legacyCv);
+
+    return {
+      profiles: [profile],
+      activeProfileId: profile.id,
+      profileName: profile.name,
+      cvData: profile.data,
+    };
+  } catch (error) {
+    console.error("Error leyendo localStorage:", error);
+    const profile = createCvProfile(PROFILE_FALLBACK_NAME, initialCV);
+
+    return {
+      profiles: [profile],
+      activeProfileId: profile.id,
+      profileName: profile.name,
+      cvData: profile.data,
+    };
+  }
+}
+
+export default function App() {
+  const [initialProfilesState] = useState(loadProfilesState);
+  const [cvData, setCvData] = useState(initialProfilesState.cvData);
+  const [profiles, setProfiles] = useState(initialProfilesState.profiles);
+  const [activeProfileId, setActiveProfileId] = useState(initialProfilesState.activeProfileId);
+  const [profileName, setProfileName] = useState(initialProfilesState.profileName);
+  const [openPreview, setOpenPreview] = useState(false);
+  const [activeTab, setActiveTab] = useState("cv");
 
   // ===== Autosave =====
   useEffect(() => {
     try {
+      const safeProfileName = profileName.trim() || PROFILE_FALLBACK_NAME;
+      const storedProfiles = profiles.map((profile) =>
+        profile.id === activeProfileId
+          ? {
+              ...profile,
+              name: safeProfileName,
+              updatedAt: new Date().toISOString(),
+              data: cvData,
+            }
+          : profile
+      );
+
+      localStorage.setItem(
+        PROFILES_STORAGE_KEY,
+        JSON.stringify({
+          version: 2,
+          activeProfileId,
+          profiles: storedProfiles,
+        })
+      );
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cvData));
     } catch (error) {
       console.error("Error guardando localStorage:", error);
     }
-  }, [cvData]);
+  }, [activeProfileId, cvData, profileName, profiles]);
 
   // ===== Helpers =====
   const setPersonal = (field, value) => {
@@ -187,14 +277,117 @@ export default function App() {
     });
   };
 
+  const getProfilesWithCurrentData = (profileList = profiles) => {
+    const safeProfileName = profileName.trim() || PROFILE_FALLBACK_NAME;
+
+    return profileList.map((profile) =>
+      profile.id === activeProfileId
+        ? {
+            ...profile,
+            name: safeProfileName,
+            updatedAt: new Date().toISOString(),
+            data: cvData,
+          }
+        : profile
+    );
+  };
+
+  const handleProfileNameChange = (value) => {
+    setProfileName(value);
+    setProfiles((prev) =>
+      prev.map((profile) =>
+        profile.id === activeProfileId ? { ...profile, name: value.trim() || PROFILE_FALLBACK_NAME } : profile
+      )
+    );
+  };
+
+  const handleSelectProfile = (profileId) => {
+    if (!profileId || profileId === activeProfileId) return;
+
+    const nextProfiles = getProfilesWithCurrentData();
+    const nextProfile = nextProfiles.find((profile) => profile.id === profileId);
+    if (!nextProfile) return;
+
+    setProfiles(nextProfiles);
+    setActiveProfileId(nextProfile.id);
+    setProfileName(nextProfile.name);
+    setCvData(nextProfile.data);
+  };
+
+  const handleCreateProfile = () => {
+    const currentProfiles = getProfilesWithCurrentData();
+    const nextProfile = createCvProfile(`CV ${currentProfiles.length + 1}`, initialCV);
+
+    setProfiles([...currentProfiles, nextProfile]);
+    setActiveProfileId(nextProfile.id);
+    setProfileName(nextProfile.name);
+    setCvData(nextProfile.data);
+    setActiveTab("cv");
+  };
+
+  const handleDuplicateProfile = () => {
+    const currentProfiles = getProfilesWithCurrentData();
+    const nextProfile = createCvProfile(`${profileName.trim() || PROFILE_FALLBACK_NAME} copia`, cvData);
+
+    setProfiles([...currentProfiles, nextProfile]);
+    setActiveProfileId(nextProfile.id);
+    setProfileName(nextProfile.name);
+    setCvData(nextProfile.data);
+  };
+
+  const handleDeleteProfile = () => {
+    const currentProfiles = getProfilesWithCurrentData();
+    if (currentProfiles.length <= 1) {
+      alert("Debe existir al menos un perfil.");
+      return;
+    }
+
+    const confirmed = confirm(`Eliminar el perfil "${profileName.trim() || PROFILE_FALLBACK_NAME}"?`);
+    if (!confirmed) return;
+
+    const remainingProfiles = currentProfiles.filter((profile) => profile.id !== activeProfileId);
+    const nextProfile = remainingProfiles[0];
+
+    setProfiles(remainingProfiles);
+    setActiveProfileId(nextProfile.id);
+    setProfileName(nextProfile.name);
+    setCvData(nextProfile.data);
+  };
+
+  const handleResetCurrentProfile = () => {
+    setCvData(normalizeCv(initialCV, initialCV, makeId));
+  };
+
+  const setValueAtPath = (path, value) => {
+    setCvData((prev) => {
+      const update = (target, segments) => {
+        const [segment, ...rest] = segments;
+        if (segment === undefined) return value;
+
+        const nextTarget = Array.isArray(target) ? [...target] : { ...target };
+        nextTarget[segment] = update(nextTarget[segment], rest);
+        return nextTarget;
+      };
+
+      return update(prev, path);
+    });
+  };
+
   const jsonPreview = useMemo(() => JSON.stringify(cvData, null, 2), [cvData]);
 
+  const exportPayload = {
+    app: "azgeneratecv",
+    version: 2,
+    activeProfileId,
+    profiles: getProfilesWithCurrentData(),
+  };
+
   const handleExport = () => {
-    const blob = new Blob([jsonPreview], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "cv-data.json";
+    a.download = "cv-profiles.json";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -213,9 +406,30 @@ export default function App() {
         const text = String(reader.result ?? "");
         const parsed = JSON.parse(text);
 
-        const normalized = normalizeCv(parsed, initialCV, makeId);
-        setCvData(normalized);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+        if (Array.isArray(parsed?.profiles)) {
+          const importedProfiles = parsed.profiles.map((profile, index) => normalizeProfile(profile, index));
+          if (!importedProfiles.length) throw new Error("No hay perfiles en el JSON.");
+
+          const importedActiveProfileId = importedProfiles.some((profile) => profile.id === parsed.activeProfileId)
+            ? parsed.activeProfileId
+            : importedProfiles[0].id;
+          const importedActiveProfile =
+            importedProfiles.find((profile) => profile.id === importedActiveProfileId) ?? importedProfiles[0];
+
+          setProfiles(importedProfiles);
+          setActiveProfileId(importedActiveProfileId);
+          setProfileName(importedActiveProfile.name);
+          setCvData(importedActiveProfile.data);
+        } else {
+          const importedProfileName = file.name.replace(/\.json$/i, "").trim() || "CV importado";
+          const importedProfile = createCvProfile(importedProfileName, parsed);
+          const currentProfiles = getProfilesWithCurrentData();
+
+          setProfiles([...currentProfiles, importedProfile]);
+          setActiveProfileId(importedProfile.id);
+          setProfileName(importedProfile.name);
+          setCvData(importedProfile.data);
+        }
 
         alert("✅ JSON importado correctamente");
       } catch (err) {
@@ -227,7 +441,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen bg-base-200 flex flex-col overflow-hidden">
+    <div lang="es" spellCheck="true" className="h-screen bg-base-200 flex flex-col overflow-hidden">
       {/* ===== Topbar sticky ===== */}
       <div className="navbar bg-base-100 shadow-sm sticky top-0 z-50">
         <div className="navbar-start gap-3">
@@ -265,10 +479,7 @@ export default function App() {
 
           <button
             className="btn btn-sm"
-            onClick={() => {
-              localStorage.removeItem(STORAGE_KEY);
-              setCvData(initialCV);
-            }}
+            onClick={handleResetCurrentProfile}
           >
             Reset
           </button>
@@ -276,11 +487,75 @@ export default function App() {
       </div>
 
       {/* ===== Content wrapper (sin scroll general) ===== */}
-      <div className="flex-1 overflow-hidden">
-        <div className="mx-auto max-w-7xl h-full p-4">
-          <div className="grid gap-4 lg:grid-cols-12 h-full">
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-7xl min-h-full p-3 sm:p-4">
+
+          <div className="mb-4 grid gap-3 rounded-lg bg-base-100 p-3 shadow-sm lg:grid-cols-[1fr_auto] lg:items-end">
+            <div className="grid gap-3 md:grid-cols-[220px_1fr]">
+              <label className="floating-label">
+                <select
+                  className="select select-sm w-full"
+                  value={activeProfileId}
+                  onChange={(e) => handleSelectProfile(e.target.value)}
+                >
+                  {profiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </option>
+                  ))}
+                </select>
+                <span>Perfil</span>
+              </label>
+
+              <label className="floating-label">
+                <input
+                  className="input input-sm w-full"
+                  placeholder="Nombre del perfil"
+                  value={profileName}
+                  onChange={(e) => handleProfileNameChange(e.target.value)}
+                />
+                <span>Nombre del perfil</span>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+              <button className="btn btn-sm btn-outline sm:flex-none" onClick={handleCreateProfile}>
+                Nuevo perfil
+              </button>
+              <button className="btn btn-sm btn-outline sm:flex-none" onClick={handleDuplicateProfile}>
+                Duplicar
+              </button>
+              <button className="btn btn-sm btn-ghost sm:flex-none" onClick={handleDeleteProfile}>
+                Eliminar
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs arriba */}
+          <div className="mb-4 shrink-0">
+            <div role="tablist" className="tabs tabs-box w-full overflow-x-auto">
+              <button
+                role="tab"
+                className={`tab shrink-0 ${activeTab === "cv" ? "tab-active" : ""}`}
+                onClick={() => setActiveTab("cv")}
+              >
+                Formulario CV
+              </button>
+
+              <button
+                role="tab"
+                className={`tab shrink-0 ${activeTab === "platilla" ? "tab-active" : ""}`}
+                onClick={() => setActiveTab("platilla")}
+              >
+                Plantilla
+              </button>
+            </div>
+          </div>
+
+            {activeTab === "cv" && (
+          <div className="grid gap-4 lg:grid-cols-12 lg:h-[calc(100vh-230px)] lg:min-h-0 lg:overflow-hidden">
             {/* LEFT: Form (SCROLL AQUÍ) */}
-            <div className="lg:col-span-7 overflow-y-auto pr-2">
+            <div className="min-h-0 lg:col-span-7 lg:overflow-y-auto lg:pr-2">
               <div className="space-y-4">
                 {/* Datos personales */}
                 <div className="card bg-base-100 shadow">
@@ -647,20 +922,25 @@ export default function App() {
             </div>
 
             {/* RIGHT: JSON Preview (fijo) */}
-            <div className="lg:col-span-5 overflow-hidden">
-              <div className="h-full flex flex-col gap-4">
-                <div className="card bg-base-100 shadow flex-1 overflow-hidden">
-                  <div className="card-body h-full overflow-hidden">
-                    <div className="flex items-center justify-between">
+            <div className="min-h-0 lg:col-span-5 lg:overflow-hidden">
+              <div className="flex min-h-0 flex-col gap-4 lg:h-full">
+                <div className="card bg-base-100 shadow lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+                  <div className="card-body lg:h-full lg:min-h-0 lg:overflow-hidden">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <h3 className="font-semibold">Preview JSON</h3>
                       <div className="badge badge-ghost">Autosave</div>
                     </div>
 
-                    <pre className="mt-3 p-3 rounded-xl bg-base-200 text-xs overflow-auto flex-1 border border-base-300">
+                    <pre className="mt-3 max-h-80 min-h-0 p-3 rounded-xl bg-base-200 text-xs overflow-auto border border-base-300 lg:max-h-none lg:flex-1">
                       {jsonPreview}
                     </pre>
                   </div>
                 </div>
+
+                <SpellChecker
+                  data={cvData}
+                  onApply={(issue) => setValueAtPath(issue.path, issue.nextValue)}
+                />
 
                 <div className="alert alert-info">
                   <span className="text-sm">
@@ -670,7 +950,20 @@ export default function App() {
               </div>
             </div>
           </div>
-
+            )}
+            {activeTab === "platilla" && (
+              <StyleCV
+                value={cvData.templateStyle}
+                data={cvData}
+                onChange={(templateStyle) =>
+                  setCvData((prev) => ({
+                    ...prev,
+                    templateStyle: normalizeCvStyleId(templateStyle),
+                  }))
+                }
+                onDataChange={setCvData}
+              />
+            )}
           {/* Modal preview */}
           {openPreview && <CvPreview data={cvData} onClose={() => setOpenPreview(false)} />}
         </div>
