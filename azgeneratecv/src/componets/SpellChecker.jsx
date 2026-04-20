@@ -145,7 +145,7 @@ export default function SpellChecker({ data, onApply }) {
 
   return (
     <div className="card bg-base-100 shadow">
-      <div className="card-body gap-3">
+      <div className="card-body gap-3 p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="font-semibold">Corrector ortografico</h3>
@@ -161,13 +161,13 @@ export default function SpellChecker({ data, onApply }) {
             {issues.map((issue) => (
               <div key={issue.id} className="rounded-lg border border-base-300 p-3">
                 <div className="text-xs font-semibold opacity-70">{issue.field}</div>
-                <div className="mt-1 text-sm">
+                <div className="mt-1 text-sm break-words">
                   <span className="font-semibold">{issue.found}</span>
                   <span className="opacity-60">{" -> "}</span>
                   <span className="font-semibold text-success">{issue.suggestion}</span>
                 </div>
                 <div className="mt-1 text-xs opacity-60">{issue.reason}</div>
-                <button className="btn btn-xs btn-outline mt-2" onClick={() => onApply?.(issue)}>
+                <button className="btn btn-xs btn-outline mt-2 w-full sm:w-auto" onClick={() => onApply?.(issue)}>
                   Aplicar sugerencia
                 </button>
               </div>

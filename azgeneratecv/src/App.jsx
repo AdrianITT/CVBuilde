@@ -443,14 +443,14 @@ export default function App() {
   return (
     <div lang="es" spellCheck="true" className="h-screen bg-base-200 flex flex-col overflow-hidden">
       {/* ===== Topbar sticky ===== */}
-      <div className="navbar bg-base-100 shadow-sm sticky top-0 z-50">
-        <div className="navbar-start gap-3">
-          <div className="text-lg font-bold">CV Builder -AZ-</div>
+      <div className="navbar sticky top-0 z-50 flex-col gap-3 bg-base-100 px-3 py-3 shadow-sm sm:flex-row sm:px-4">
+        <div className="navbar-start w-full gap-3 sm:w-auto">
+          <div className="min-w-0 flex-1 text-lg font-bold sm:flex-none">CV Builder -AZ-</div>
           <div className="badge badge-outline">ATS</div>
         </div>
 
-        <div className="navbar-end gap-2">
-          <button className="btn btn-sm btn-primary" onClick={handleExport}>
+        <div className="navbar-end grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+          <button className="btn btn-sm btn-primary w-full sm:w-auto" onClick={handleExport}>
             Exportar JSON
           </button>
 
@@ -467,18 +467,18 @@ export default function App() {
           />
 
           <button
-            className="btn btn-sm btn-outline"
+            className="btn btn-sm btn-outline w-full sm:w-auto"
             onClick={() => document.getElementById(fileInputId)?.click()}
           >
             Importar JSON
           </button>
 
-          <button className="btn btn-sm btn-secondary" onClick={() => setOpenPreview(true)}>
+          <button className="btn btn-sm btn-secondary w-full sm:w-auto" onClick={() => setOpenPreview(true)}>
             Vista previa / PDF
           </button>
 
           <button
-            className="btn btn-sm"
+            className="btn btn-sm w-full sm:w-auto"
             onClick={handleResetCurrentProfile}
           >
             Reset
@@ -559,7 +559,7 @@ export default function App() {
               <div className="space-y-4">
                 {/* Datos personales */}
                 <div className="card bg-base-100 shadow">
-                  <div className="card-body">
+                  <div className="card-body p-4 sm:p-6">
                     <h2 className="card-title">Datos personales</h2>
 
                     <div className="grid gap-3 md:grid-cols-2">
@@ -645,7 +645,7 @@ export default function App() {
 
                 {/* Resumen */}
                 <div className="card bg-base-100 shadow">
-                  <div className="card-body">
+                  <div className="card-body p-4 sm:p-6">
                     <h2 className="card-title">Resumen</h2>
                     <textarea
                       placeholder="2–3 líneas: stack + valor + impacto"
@@ -661,7 +661,7 @@ export default function App() {
 
                 {/* Skills */}
                 <div className="card bg-base-100 shadow">
-                  <div className="card-body">
+                  <div className="card-body p-4 sm:p-6">
                     <h2 className="card-title">Skills</h2>
                     <CardSkill
                       value={cvData.skills}
@@ -677,11 +677,11 @@ export default function App() {
 
                 {/* Experiencia */}
                 <div className="card bg-base-100 shadow">
-                  <div className="card-body">
-                    <div className="flex items-center justify-between gap-2">
+                  <div className="card-body p-4 sm:p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <h2 className="card-title">Experiencia</h2>
                       <button
-                        className="btn btn-sm btn-outline"
+                        className="btn btn-sm btn-outline w-full sm:w-auto"
                         onClick={() =>
                           addItem("experiencia", {
                             puesto: "",
@@ -700,8 +700,8 @@ export default function App() {
 
                     <div className="mt-3 space-y-3">
                       {cvData.experiencia.map((exp, i) => (
-                        <div key={i} className="rounded-2xl border border-base-300 p-4">
-                          <div className="flex items-center justify-between mb-2">
+                        <div key={i} className="rounded-lg border border-base-300 p-3 sm:rounded-2xl sm:p-4">
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                             <div className="font-semibold">Experiencia #{i + 1}</div>
                             <button
                               className="btn btn-xs btn-ghost"
@@ -779,7 +779,7 @@ export default function App() {
                           </div>
 
                           <div className="mt-4">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="font-semibold">Logros / Responsabilidades</div>
                               <button className="btn btn-xs btn-outline" onClick={() => addLogro(i)}>
                                 + Logro
@@ -788,14 +788,14 @@ export default function App() {
 
                             <div className="mt-2 grid gap-2">
                               {exp.logros.map((l, li) => (
-                                <div key={li} className="flex gap-2">
+                                <div key={li} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                                   <input
                                     className="input input-bordered w-full"
                                     placeholder={`Logro #${li + 1}`}
                                     value={l}
                                     onChange={(e) => updateLogro(i, li, e.target.value)}
                                   />
-                                  <button className="btn btn-ghost" onClick={() => removeLogro(i, li)}>
+                                  <button className="btn btn-ghost w-full sm:w-auto" onClick={() => removeLogro(i, li)}>
                                     ✕
                                   </button>
                                 </div>
@@ -810,11 +810,11 @@ export default function App() {
 
                 {/* Educación */}
                 <div className="card bg-base-100 shadow">
-                  <div className="card-body">
-                    <div className="flex items-center justify-between gap-2">
+                  <div className="card-body p-4 sm:p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <h2 className="card-title">Educación</h2>
                       <button
-                        className="btn btn-sm btn-outline"
+                        className="btn btn-sm btn-outline w-full sm:w-auto"
                         onClick={() =>
                           addItem("educacion", {
                             grado: "",
@@ -832,8 +832,8 @@ export default function App() {
 
                     <div className="mt-3 space-y-3">
                       {cvData.educacion.map((edu, i) => (
-                        <div key={i} className="rounded-2xl border border-base-300 p-4">
-                          <div className="flex items-center justify-between mb-2">
+                        <div key={i} className="rounded-lg border border-base-300 p-3 sm:rounded-2xl sm:p-4">
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                             <div className="font-semibold">Educación #{i + 1}</div>
                             <button
                               className="btn btn-xs btn-ghost"

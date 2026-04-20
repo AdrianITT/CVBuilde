@@ -755,7 +755,7 @@ function TemplateCard({ template, selected, onSelect }) {
       }`}
       onClick={() => onSelect(template.id)}
     >
-      <div className="card-body gap-3">
+      <div className="card-body gap-3 p-4 sm:p-5">
         <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
           <div className="min-w-0">
             <h3 className="card-title text-base leading-tight break-words">{template.name}</h3>
@@ -903,7 +903,7 @@ function LinkedInImporter({ onDataChange }) {
 
   return (
     <div className="rounded-lg border border-base-300 bg-base-100 p-3">
-      {/*<div className="flex flex-wrap items-start justify-between gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="font-semibold">Sincronizacion con LinkedIn</h3>
           <p className="text-xs opacity-70">
@@ -920,11 +920,11 @@ function LinkedInImporter({ onDataChange }) {
           value={profileUrl}
           onChange={(event) => setProfileUrl(event.target.value)}
         />
-        <button className="btn btn-sm btn-outline" onClick={handleImport}>
+        <button className="btn btn-sm btn-outline w-full" onClick={handleImport}>
           Importar desde LinkedIn
         </button>
-        {status ? <p className="text-xs opacity-70">{status}</p> : null}
-      </div> */}
+        {status ? <p className="text-xs opacity-70 break-words">{status}</p> : null}
+      </div>
     </div>
   );
 }
@@ -969,7 +969,7 @@ export default function StyleCV({ value, onChange, data, onDataChange }) {
     <div className="grid gap-4 lg:grid-cols-12 lg:h-[calc(100vh-230px)] lg:min-h-0 lg:overflow-hidden">
       <div className="min-h-0 lg:col-span-5 lg:overflow-y-auto lg:pr-2">
         <div className="card bg-base-100 shadow">
-          <div className="card-body gap-3">
+          <div className="card-body gap-3 p-4 sm:p-6">
             <div>
               <h2 className="card-title text-xl">Estilos de plantilla</h2>
               <p className="text-sm opacity-70">
@@ -977,7 +977,7 @@ export default function StyleCV({ value, onChange, data, onDataChange }) {
               </p>
             </div>
 
-            <div className="max-h-[430px] overflow-y-auto pr-1 lg:max-h-[38vh]">
+            <div className="max-h-[360px] overflow-y-auto pr-1 sm:max-h-[430px] lg:max-h-[38vh]">
               <div className="grid gap-3">
                 {CV_TEMPLATE_STYLES.map((template) => (
                   <TemplateCard
@@ -999,7 +999,7 @@ export default function StyleCV({ value, onChange, data, onDataChange }) {
                 <h3 className="font-semibold">Configurador de UI</h3>
                 <p className="text-xs opacity-70">Cambios en tiempo real solo para {activeStyle.name}.</p>
               </div>
-              <button className="btn btn-xs btn-ghost" onClick={resetTemplateSettings}>
+              <button className="btn btn-xs btn-ghost w-full sm:w-auto" onClick={resetTemplateSettings}>
                 Reset
               </button>
             </div>
@@ -1095,12 +1095,12 @@ export default function StyleCV({ value, onChange, data, onDataChange }) {
       </div>
 
       <div className="min-h-0 lg:col-span-7 lg:overflow-y-auto">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <div>
+        <div className="mb-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+          <div className="min-w-0">
             <div className="text-sm opacity-70">Vista previa</div>
             <h3 className="text-lg font-semibold">{activeStyle.name}</h3>
           </div>
-          <div className="badge badge-outline">PDF listo</div>
+          <div className="badge badge-outline justify-self-start sm:justify-self-end">PDF listo</div>
         </div>
         <style>{getCvCss(activeStyleId)}</style>
         <div className="overflow-auto rounded-lg bg-base-300 p-2 sm:p-4">

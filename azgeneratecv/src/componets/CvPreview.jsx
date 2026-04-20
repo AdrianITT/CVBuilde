@@ -36,17 +36,17 @@ export default function CvPreview({ data, onClose }) {
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box w-[calc(100vw-1rem)] max-w-5xl">
-        <div className="flex flex-wrap justify-between items-center gap-2">
-          <div>
+      <div className="modal-box w-[calc(100vw-1rem)] max-w-5xl p-4 sm:p-6">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+          <div className="min-w-0">
             <h3 className="font-bold text-lg">Vista previa CV</h3>
             <p className="text-sm opacity-70">Plantilla: {style.name}</p>
           </div>
-          <div className="flex gap-2">
-            <button className="btn btn-outline" onClick={downloadPDF}>
+          <div className="grid gap-2 sm:flex">
+            <button className="btn btn-outline w-full sm:w-auto" onClick={downloadPDF}>
               Descargar PDF
             </button>
-            <button className="btn" onClick={onClose}>
+            <button className="btn w-full sm:w-auto" onClick={onClose}>
               Cerrar
             </button>
           </div>
