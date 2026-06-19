@@ -358,19 +358,27 @@ export default function App() {
     setCvData(normalizeCv(initialCV, initialCV, makeId));
   };
 
+  const updateValueAtPath = (target, path, value) => {
+    const update = (currentTarget, segments) => {
+      const [segment, ...rest] = segments;
+      if (segment === undefined) return value;
+
+      const nextTarget = Array.isArray(currentTarget) ? [...currentTarget] : { ...currentTarget };
+      nextTarget[segment] = update(nextTarget[segment], rest);
+      return nextTarget;
+    };
+
+    return update(target, path);
+  };
+
   const setValueAtPath = (path, value) => {
-    setCvData((prev) => {
-      const update = (target, segments) => {
-        const [segment, ...rest] = segments;
-        if (segment === undefined) return value;
+    setCvData((prev) => updateValueAtPath(prev, path, value));
+  };
 
-        const nextTarget = Array.isArray(target) ? [...target] : { ...target };
-        nextTarget[segment] = update(nextTarget[segment], rest);
-        return nextTarget;
-      };
-
-      return update(prev, path);
-    });
+  const applyIssues = (issues) => {
+    setCvData((prev) =>
+      issues.reduce((nextState, issue) => updateValueAtPath(nextState, issue.path, issue.nextValue), prev)
+    );
   };
 
   const jsonPreview = useMemo(() => JSON.stringify(cvData, null, 2), [cvData]);
@@ -940,6 +948,7 @@ export default function App() {
                 <SpellChecker
                   data={cvData}
                   onApply={(issue) => setValueAtPath(issue.path, issue.nextValue)}
+                  onApplyAll={applyIssues}
                 />
 
                 <div className="alert alert-info">
