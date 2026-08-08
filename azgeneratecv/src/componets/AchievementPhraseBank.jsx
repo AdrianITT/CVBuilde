@@ -1,6 +1,6 @@
 // Banco de frases de impacto para logros: sugiere plantillas con verbos de
 // acción y marcadores de métrica ([X%], [métrica]) para arrancar más rápido
-// que la hoja en blanco. Presentacional: el padre controla si está abierto.
+// que la hoja en blanco. Presentacional: el padre controla si está abierto..
 import { useState } from "react";
 import { ACHIEVEMENT_PHRASE_CATEGORIES } from "../lib/achievementPhrases.js";
 
