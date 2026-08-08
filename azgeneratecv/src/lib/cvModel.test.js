@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createCvProfile, initialCV, normalizeCv, normalizeProfile } from "./cvModel.js";
+import {
+  createCvProfile,
+  duplicateArrayItem,
+  initialCV,
+  moveArrayItem,
+  normalizeCv,
+  normalizeProfile,
+} from "./cvModel.js";
 
 describe("normalizeCv", () => {
   it("devuelve una estructura completa a partir de undefined", () => {
@@ -67,5 +74,39 @@ describe("normalizeProfile", () => {
   it("acepta datos en la forma legacy (sin envoltorio .data)", () => {
     const profile = normalizeProfile({ resumen: "legacy" }, 0);
     expect(profile.data.resumen).toBe("legacy");
+  });
+});
+
+describe("moveArrayItem", () => {
+  it("intercambia el elemento con el siguiente al mover hacia abajo", () => {
+    expect(moveArrayItem(["a", "b", "c"], 0, 1)).toEqual(["b", "a", "c"]);
+  });
+
+  it("intercambia el elemento con el anterior al mover hacia arriba", () => {
+    expect(moveArrayItem(["a", "b", "c"], 2, -1)).toEqual(["a", "c", "b"]);
+  });
+
+  it("no hace nada si el destino queda fuera de rango", () => {
+    const arr = ["a", "b", "c"];
+    expect(moveArrayItem(arr, 0, -1)).toBe(arr);
+    expect(moveArrayItem(arr, 2, 1)).toBe(arr);
+  });
+});
+
+describe("duplicateArrayItem", () => {
+  it("inserta una copia justo después del original", () => {
+    expect(duplicateArrayItem(["a", "b"], 0)).toEqual(["a", "a", "b"]);
+  });
+
+  it("clona objetos anidados sin compartir referencia", () => {
+    const original = [{ nombre: "React", logros: ["x"] }];
+    const result = duplicateArrayItem(original, 0);
+    result[1].logros.push("y");
+    expect(original[0].logros).toEqual(["x"]);
+  });
+
+  it("no hace nada con un índice fuera de rango", () => {
+    const arr = ["a"];
+    expect(duplicateArrayItem(arr, 5)).toBe(arr);
   });
 });

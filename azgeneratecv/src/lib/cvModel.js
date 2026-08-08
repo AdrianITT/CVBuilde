@@ -5,6 +5,7 @@ import { DEFAULT_CV_STYLE_ID, normalizeCvStyleId } from "./cvStyles.js";
 
 export const STORAGE_KEY = "cv_v1";
 export const PROFILES_STORAGE_KEY = "cv_profiles_v1";
+export const PROFILES_BACKUP_KEY = "cv_profiles_backup_v1";
 export const PROFILE_FALLBACK_NAME = "CV Principal";
 
 export const initialCV = {
@@ -49,6 +50,26 @@ export const initialCV = {
 };
 
 export const makeId = () => crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random()}`;
+
+// Mueve un elemento del array una posición (direction: -1 arriba, +1 abajo).
+// Sin efecto si el destino queda fuera de rango.
+export function moveArrayItem(array, index, direction) {
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= array.length) return array;
+
+  const next = [...array];
+  [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+  return next;
+}
+
+// Inserta una copia profunda del elemento justo después del original.
+export function duplicateArrayItem(array, index) {
+  if (index < 0 || index >= array.length) return array;
+
+  const next = [...array];
+  next.splice(index + 1, 0, JSON.parse(JSON.stringify(array[index])));
+  return next;
+}
 
 export function normalizeCv(raw) {
   const src = raw && typeof raw === "object" ? raw : {};

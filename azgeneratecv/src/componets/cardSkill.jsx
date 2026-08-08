@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { moveArrayItem } from "../lib/cvModel.js";
 
 const niveles = ["Básico", "Intermedio", "Avanzado", "Experto"];
 const makeId = () => (crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random()}`);
@@ -11,15 +12,15 @@ export default function CardSkill({ value = [], onChange }) {
 
   const addSkill = (e) => {
     e?.preventDefault?.();
-    const name = skillName.trim();
-    // console.log("CLICK addSkill:", { skillName, name, skillNivel });
+    const raw = skillName.trim();
+    if (!raw) return;
 
-    if (!name) return;
-
-    const newSkill = { id: makeId(), nombre: name, nivel: skillNivel };
+    // [speed-fix] Permite pegar varias skills separadas por coma y agregarlas todas de una vez.
+    const names = raw.split(",").map((n) => n.trim()).filter(Boolean);
+    const newSkills = names.map((name) => ({ id: makeId(), nombre: name, nivel: skillNivel }));
 
     // ✅ updater para evitar estados viejos
-    onChange?.((prev) => [...(Array.isArray(prev) ? prev : []), newSkill]);
+    onChange?.((prev) => [...(Array.isArray(prev) ? prev : []), ...newSkills]);
 
     setSkillName("");
     setSkillNivel("Intermedio");
@@ -33,6 +34,10 @@ export default function CardSkill({ value = [], onChange }) {
     onChange?.((prev) =>
       (Array.isArray(prev) ? prev : []).map((s) => (s.id === id ? { ...s, [field]: val } : s))
     );
+  };
+
+  const moveSkill = (index, direction) => {
+    onChange?.((prev) => moveArrayItem(Array.isArray(prev) ? prev : [], index, direction));
   };
 
   return (
@@ -71,9 +76,10 @@ export default function CardSkill({ value = [], onChange }) {
           + Agregar
         </button>
       </div>
+      <div className="text-xs opacity-60">Tip: separa varias con coma (ej: "React, Docker, SQL") para agregarlas de una vez.</div>
 
       <div className="grid gap-2 sm:hidden">
-        {skills.map((s) => (
+        {skills.map((s, i) => (
           <div key={s.id} className="rounded-lg border border-base-300 bg-base-100 p-3">
             <div className="grid gap-2">
               <label className="grid gap-1 text-xs font-medium opacity-80">
@@ -98,9 +104,29 @@ export default function CardSkill({ value = [], onChange }) {
                 </select>
               </label>
 
-              <button className="btn btn-ghost btn-sm w-full" onClick={() => removeSkill(s.id)}>
-                Eliminar
-              </button>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  title="Subir"
+                  disabled={i === 0}
+                  onClick={() => moveSkill(i, -1)}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  title="Bajar"
+                  disabled={i === skills.length - 1}
+                  onClick={() => moveSkill(i, 1)}
+                >
+                  ↓
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => removeSkill(s.id)}>
+                  Eliminar
+                </button>
+              </div>
             </div>
           </div>
         ))}
@@ -121,7 +147,7 @@ export default function CardSkill({ value = [], onChange }) {
             </tr>
           </thead>
           <tbody>
-            {skills.map((s) => (
+            {skills.map((s, i) => (
               <tr key={s.id}>
                 <td>
                   <input
@@ -141,7 +167,25 @@ export default function CardSkill({ value = [], onChange }) {
                     ))}
                   </select>
                 </td>
-                <td className="text-right">
+                <td className="text-right whitespace-nowrap">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    title="Subir"
+                    disabled={i === 0}
+                    onClick={() => moveSkill(i, -1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    title="Bajar"
+                    disabled={i === skills.length - 1}
+                    onClick={() => moveSkill(i, 1)}
+                  >
+                    ↓
+                  </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => removeSkill(s.id)}>
                     Eliminar
                   </button>

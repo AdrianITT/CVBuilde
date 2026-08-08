@@ -5,11 +5,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PROFILE_FALLBACK_NAME,
+  PROFILES_BACKUP_KEY,
   PROFILES_STORAGE_KEY,
   STORAGE_KEY,
   createCvProfile,
+  duplicateArrayItem,
   initialCV,
   loadProfilesState,
+  moveArrayItem,
   normalizeCv,
   normalizeProfile,
 } from "../lib/cvModel.js";
@@ -37,10 +40,15 @@ export function useCvProfiles(notify = () => {}) {
   const [profileName, setProfileName] = useState(initialProfilesState.profileName);
   const [storageWarning, setStorageWarning] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [pendingImport, setPendingImport] = useState(null);
+  // [ux-fix] Estado visible del autosave: el usuario no tenía forma de saber
+  // si sus cambios ya se habían guardado o seguían en el debounce.
+  const [saveStatus, setSaveStatus] = useState("idle"); // idle | saving | saved
   const saveTimer = useRef(null);
 
   // ===== Autosave con debounce =====
   useEffect(() => {
+    setSaveStatus("saving");
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       try {
@@ -57,6 +65,7 @@ export function useCvProfiles(notify = () => {}) {
         );
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cvData));
         setStorageWarning("");
+        setSaveStatus("saved");
       } catch (error) {
         console.error("Error guardando localStorage:", error);
         // [storage-fix] QuotaExceededError: avisar al usuario en vez de fallar en silencio
@@ -69,6 +78,7 @@ export function useCvProfiles(notify = () => {}) {
             ? "No se pudo guardar: almacenamiento lleno. Reduce el tamaño de las fotos o exporta tus perfiles a JSON como respaldo."
             : "No se pudieron guardar los cambios automáticamente. Exporta a JSON para no perder tu trabajo."
         );
+        setSaveStatus("idle");
       }
     }, AUTOSAVE_DELAY);
 
@@ -99,6 +109,14 @@ export function useCvProfiles(notify = () => {}) {
     });
   };
 
+  const moveItem = (key, index, direction) => {
+    setCvData((prev) => ({ ...prev, [key]: moveArrayItem(prev[key], index, direction) }));
+  };
+
+  const duplicateItem = (key, index) => {
+    setCvData((prev) => ({ ...prev, [key]: duplicateArrayItem(prev[key], index) }));
+  };
+
   const updateLogro = (expIndex, logroIndex, value) => {
     setCvData((prev) => {
       const experiencia = [...prev.experiencia];
@@ -116,6 +134,20 @@ export function useCvProfiles(notify = () => {}) {
       const experiencia = [...prev.experiencia];
       const item = { ...experiencia[expIndex] };
       item.logros = [...item.logros, ""];
+      experiencia[expIndex] = item;
+      return { ...prev, experiencia };
+    });
+  };
+
+  // [speed-fix] Inserta una frase del banco de logros. Si el único logro
+  // existente está vacío (caso típico de una experiencia recién creada), la
+  // reemplaza en vez de dejar un "Logro #1" vacío encima de la sugerencia.
+  const addLogroWithValue = (expIndex, value) => {
+    setCvData((prev) => {
+      const experiencia = [...prev.experiencia];
+      const item = { ...experiencia[expIndex] };
+      item.logros =
+        item.logros.length === 1 && !item.logros[0].trim() ? [value] : [...item.logros, value];
       experiencia[expIndex] = item;
       return { ...prev, experiencia };
     });
@@ -235,7 +267,30 @@ export function useCvProfiles(notify = () => {}) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "cv-profiles.json";
+    // [json-fix] Fecha en el nombre para no pisar exports anteriores sin darse cuenta.
+    const today = new Date().toISOString().slice(0, 10);
+    a.download = `cv-profiles-${today}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportActiveProfile = () => {
+    const blob = new Blob([JSON.stringify(cvData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const today = new Date().toISOString().slice(0, 10);
+    // [json-fix] Exporta solo los datos del perfil activo (sin envoltorio de
+    // perfiles): al reimportarlo entra por la rama "CV suelto" y se agrega
+    // como un perfil nuevo, sin disparar la confirmación de reemplazo total.
+    const safeName =
+      (profileName.trim() || PROFILE_FALLBACK_NAME)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-+|-+$)/g, "") || "perfil";
+    // Evita nombres redundantes como "cv-cv-principal" cuando el perfil ya empieza con "cv".
+    const filenameBase = safeName.startsWith("cv") ? safeName : `cv-${safeName}`;
+    a.download = `${filenameBase}-${today}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -261,13 +316,10 @@ export function useCvProfiles(notify = () => {}) {
           const importedActiveProfileId = importedProfiles.some((profile) => profile.id === parsed.activeProfileId)
             ? parsed.activeProfileId
             : importedProfiles[0].id;
-          const importedActiveProfile =
-            importedProfiles.find((profile) => profile.id === importedActiveProfileId) ?? importedProfiles[0];
 
-          setProfiles(importedProfiles);
-          setActiveProfileId(importedActiveProfileId);
-          setProfileName(importedActiveProfile.name);
-          setCvData(importedActiveProfile.data);
+          // [import-fix] Este import reemplaza TODOS los perfiles actuales: se pide
+          // confirmación en vez de sobrescribir en silencio (ver requestDeleteProfile).
+          setPendingImport({ profiles: importedProfiles, activeProfileId: importedActiveProfileId });
         } else {
           const importedProfileName = file.name.replace(/\.json$/i, "").trim() || "CV importado";
           const importedProfile = createCvProfile(importedProfileName, parsed);
@@ -277,15 +329,46 @@ export function useCvProfiles(notify = () => {}) {
           setActiveProfileId(importedProfile.id);
           setProfileName(importedProfile.name);
           setCvData(importedProfile.data);
+          notify("JSON importado correctamente", "success");
         }
-
-        notify("JSON importado correctamente", "success");
       } catch (err) {
         console.error(err);
         notify("JSON inválido o corrupto", "error");
       }
     };
     reader.readAsText(file);
+  };
+
+  const cancelImportProfiles = () => setPendingImport(null);
+
+  const confirmImportProfiles = () => {
+    if (!pendingImport) return;
+
+    // [import-fix] Respaldo de seguridad de los perfiles actuales antes de
+    // reemplazarlos, por si el import fue un error.
+    try {
+      localStorage.setItem(
+        PROFILES_BACKUP_KEY,
+        JSON.stringify({
+          backedUpAt: new Date().toISOString(),
+          activeProfileId,
+          profiles: getProfilesWithCurrentData(),
+        })
+      );
+    } catch (error) {
+      console.error("Error respaldando perfiles antes de importar:", error);
+    }
+
+    const importedActiveProfile =
+      pendingImport.profiles.find((profile) => profile.id === pendingImport.activeProfileId) ??
+      pendingImport.profiles[0];
+
+    setProfiles(pendingImport.profiles);
+    setActiveProfileId(pendingImport.activeProfileId);
+    setProfileName(importedActiveProfile.name);
+    setCvData(importedActiveProfile.data);
+    setPendingImport(null);
+    notify("JSON importado correctamente. Tus perfiles anteriores quedaron respaldados.", "success");
   };
 
   const jsonPreview = useMemo(() => JSON.stringify(cvData, null, 2), [cvData]);
@@ -300,14 +383,18 @@ export function useCvProfiles(notify = () => {}) {
     storageWarning,
     setStorageWarning,
     confirmingDelete,
+    saveStatus,
     jsonPreview,
     // edición de campos
     setPersonal,
     updateArrayItem,
     addItem,
     removeItem,
+    moveItem,
+    duplicateItem,
     updateLogro,
     addLogro,
+    addLogroWithValue,
     removeLogro,
     // perfiles
     handleProfileNameChange,
@@ -323,6 +410,10 @@ export function useCvProfiles(notify = () => {}) {
     applyIssues,
     // import/export
     handleExport,
+    handleExportActiveProfile,
     handleImportJsonFile,
+    pendingImport,
+    confirmImportProfiles,
+    cancelImportProfiles,
   };
 }

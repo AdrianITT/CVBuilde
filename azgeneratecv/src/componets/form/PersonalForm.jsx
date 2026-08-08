@@ -2,9 +2,9 @@
 import { isValidEmail, isValidUrl } from "../../lib/validators.js";
 
 const FIELDS = [
-  { key: "nombreCompleto", label: "Nombre Completo", type: "text", full: false },
+  { key: "nombreCompleto", label: "Nombre Completo", type: "text", full: false, recommended: true },
   { key: "ciudadEstado", label: "Ciudad y Estado", type: "text", full: false },
-  { key: "correo", label: "Correo", type: "email", full: false, validate: isValidEmail, error: "Correo no válido" },
+  { key: "correo", label: "Correo", type: "email", full: false, validate: isValidEmail, error: "Correo no válido", recommended: true },
   { key: "telefono", label: "Cel / Tel", type: "text", full: false },
   { key: "github", label: "GitHub", type: "text", full: false, validate: isValidUrl, error: "URL no válida" },
   { key: "web", label: "Web", type: "text", full: false, validate: isValidUrl, error: "URL no válida" },
@@ -16,6 +16,9 @@ export default function PersonalForm({ personal, setPersonal }) {
     <div className="card bg-base-100 shadow">
       <div className="card-body p-4 sm:p-6">
         <h2 className="card-title">Datos personales</h2>
+        <p className="text-xs opacity-60 -mt-2">
+          <span className="text-primary">*</span> recomendado para que tu CV se vea completo.
+        </p>
 
         <div className="grid gap-3 md:grid-cols-2">
           {FIELDS.map((field) => {
@@ -32,7 +35,10 @@ export default function PersonalForm({ personal, setPersonal }) {
                   aria-invalid={invalid}
                   onChange={(e) => setPersonal(field.key, e.target.value)}
                 />
-                <span>{field.label}</span>
+                <span>
+                  {field.label}
+                  {field.recommended ? <span className="text-primary"> *</span> : null}
+                </span>
                 {invalid ? <span className="mt-1 block text-xs text-error">{field.error}</span> : null}
               </label>
             );

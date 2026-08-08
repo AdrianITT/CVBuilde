@@ -1,11 +1,12 @@
 // App.jsx
-import { lazy, Suspense, useDeferredValue, useState } from "react";
+import { lazy, Suspense, useDeferredValue, useMemo, useState } from "react";
 import "./App.css";
 import CardSkill from "./componets/CardSkill.jsx";
 import ConfirmModal from "./componets/ConfirmModal.jsx";
 import SpellChecker from "./componets/SpellChecker.jsx";
 import StyleCV, { CvDocument } from "./componets/StyleCV.jsx";
 import Toasts from "./componets/Toasts.jsx";
+import { getCvCompleteness } from "./lib/cvCompleteness.js";
 import { getCvCss } from "./lib/cvCss.js";
 import { normalizeCvStyleId } from "./lib/cvStyles.js";
 import EducationForm from "./componets/form/EducationForm.jsx";
@@ -40,13 +41,17 @@ export default function App() {
     storageWarning,
     setStorageWarning,
     confirmingDelete,
+    saveStatus,
     jsonPreview,
     setPersonal,
     updateArrayItem,
     addItem,
     removeItem,
+    moveItem,
+    duplicateItem,
     updateLogro,
     addLogro,
+    addLogroWithValue,
     removeLogro,
     handleProfileNameChange,
     handleSelectProfile,
@@ -59,12 +64,20 @@ export default function App() {
     setValueAtPath,
     applyIssues,
     handleExport,
+    handleExportActiveProfile,
     handleImportJsonFile,
+    pendingImport,
+    confirmImportProfiles,
+    cancelImportProfiles,
   } = useCvProfiles(notify);
 
   // [react-best-practices: rerender-use-deferred-value] El preview usa un valor
   // diferido para que el input no se sienta lento mientras se re-renderiza el CV.
   const deferredCvData = useDeferredValue(cvData);
+
+  // [ux-fix] Checklist de completitud: guía al usuario sobre qué le falta
+  // llenar en vez de dejarlo adivinar frente a un formulario largo.
+  const completeness = useMemo(() => getCvCompleteness(cvData), [cvData]);
 
   // Al crear un perfil nuevo, volver al formulario
   const createProfileAndFocusForm = () => {
@@ -82,6 +95,15 @@ export default function App() {
         <div className="navbar-start w-full gap-3 sm:w-auto">
           <div className="min-w-0 flex-1 text-lg font-bold sm:flex-none">CV Builder -AZ-</div>
           <div className="badge badge-outline">ATS</div>
+          {/* [ux-fix] Feedback visual del autosave: antes no había forma de saber si ya se guardó */}
+          {saveStatus === "saving" ? (
+            <div className="badge badge-ghost gap-1">
+              <span className="loading loading-spinner loading-xs" />
+              Guardando
+            </div>
+          ) : saveStatus === "saved" ? (
+            <div className="badge badge-success badge-outline gap-1">✓ Guardado</div>
+          ) : null}
         </div>
 
         <div className="navbar-end grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
@@ -173,6 +195,9 @@ export default function App() {
               <button className="btn btn-sm btn-outline sm:flex-none" onClick={handleDuplicateProfile}>
                 Duplicar
               </button>
+              <button className="btn btn-sm btn-outline sm:flex-none" onClick={handleExportActiveProfile}>
+                Exportar este perfil
+              </button>
               <button className="btn btn-sm btn-ghost sm:flex-none" onClick={requestDeleteProfile}>
                 Eliminar
               </button>
@@ -205,6 +230,35 @@ export default function App() {
             {/* LEFT: Formulario */}
             <div className="min-h-0 lg:col-span-5 lg:overflow-y-auto lg:pr-2">
               <div className="space-y-4">
+                <div className="card bg-base-100 shadow">
+                  <div className="card-body gap-2 p-4 sm:p-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-sm">Completitud del CV</h3>
+                      <span className="text-xs opacity-70">
+                        {completeness.doneCount}/{completeness.total}
+                      </span>
+                    </div>
+                    <progress
+                      className={`progress w-full ${completeness.percent === 100 ? "progress-success" : "progress-primary"}`}
+                      value={completeness.percent}
+                      max="100"
+                    />
+                    {completeness.percent < 100 ? (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {completeness.checks
+                          .filter((check) => !check.done)
+                          .map((check) => (
+                            <span key={check.key} className="badge badge-outline badge-sm">
+                              {check.label}
+                            </span>
+                          ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-success">Lo esencial está completo.</p>
+                    )}
+                  </div>
+                </div>
+
                 <PersonalForm personal={cvData.personal} setPersonal={setPersonal} />
 
                 <SummaryForm
@@ -232,9 +286,12 @@ export default function App() {
                   items={cvData.experiencia}
                   addItem={addItem}
                   removeItem={removeItem}
+                  moveItem={moveItem}
+                  duplicateItem={duplicateItem}
                   updateArrayItem={updateArrayItem}
                   updateLogro={updateLogro}
                   addLogro={addLogro}
+                  addLogroWithValue={addLogroWithValue}
                   removeLogro={removeLogro}
                 />
 
@@ -242,6 +299,8 @@ export default function App() {
                   items={cvData.educacion}
                   addItem={addItem}
                   removeItem={removeItem}
+                  moveItem={moveItem}
+                  duplicateItem={duplicateItem}
                   updateArrayItem={updateArrayItem}
                 />
               </div>
@@ -331,6 +390,17 @@ export default function App() {
         confirmLabel="Eliminar"
         onConfirm={confirmDeleteProfile}
         onCancel={cancelDeleteProfile}
+      />
+
+      {/* [import-fix] Importar un JSON con varios perfiles reemplaza TODOS los
+          perfiles actuales: se confirma antes, y se guarda un respaldo. */}
+      <ConfirmModal
+        open={Boolean(pendingImport)}
+        title="Reemplazar perfiles"
+        message={`Este archivo trae ${pendingImport?.profiles.length ?? 0} perfil(es) y reemplazará tus ${profiles.length} perfil(es) actuales. Se guardará un respaldo del estado actual por si necesitas recuperarlo.`}
+        confirmLabel="Reemplazar"
+        onConfirm={confirmImportProfiles}
+        onCancel={cancelImportProfiles}
       />
 
       <Toasts toasts={toasts} onDismiss={dismiss} />
