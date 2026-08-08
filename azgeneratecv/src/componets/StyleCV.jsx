@@ -1,77 +1,12 @@
-/* eslint-disable react-refresh/only-export-components */
-import React, { useState } from "react";
-
-export const DEFAULT_CV_STYLE_ID = "harvard";
-
-export const CV_TEMPLATE_STYLES = [
-  {
-    id: "harvard",
-    name: "Harvard",
-    label: "Por defecto",
-    description: "Clasico, ATS y sobrio para postulaciones formales.",
-    accent: "#111827",
-    soft: "#f3f4f6",
-    font: "Arial, Helvetica, sans-serif",
-    layout: "classic",
-  },
-  {
-    id: "executive",
-    name: "Ejecutivo",
-    label: "Directivo",
-    description: "Encabezado fuerte con separadores claros.",
-    accent: "#0f766e",
-    soft: "#ecfdf5",
-    font: "Georgia, 'Times New Roman', serif",
-    layout: "executive",
-  },
-  {
-    id: "technical",
-    name: "Tecnico",
-    label: "Tech",
-    description: "Columna lateral para skills y datos de contacto.",
-    accent: "#2563eb",
-    soft: "#eff6ff",
-    font: "Arial, Helvetica, sans-serif",
-    layout: "sidebar",
-  },
-  {
-    id: "modern",
-    name: "Moderno",
-    label: "Actual",
-    description: "Mas aire visual sin perder legibilidad en PDF.",
-    accent: "#7c3aed",
-    soft: "#f5f3ff",
-    font: "'Segoe UI', Arial, Helvetica, sans-serif",
-    layout: "modern",
-  },
-  {
-    id: "compact",
-    name: "Compacto",
-    label: "Una pagina",
-    description: "Denso y ordenado cuando hay mucha experiencia.",
-    accent: "#b45309",
-    soft: "#fffbeb",
-    font: "Arial, Helvetica, sans-serif",
-    layout: "compact",
-  },
-  {
-    id: "photo",
-    name: "Foto Profesional",
-    label: "Con foto",
-    description: "Perfil visual con foto, ideal para roles publicos o creativos.",
-    accent: "#be123c",
-    soft: "#fff1f2",
-    font: "'Segoe UI', Arial, Helvetica, sans-serif",
-    layout: "photo",
-  },
-];
-
-export const DEFAULT_TEMPLATE_SETTINGS = {
-  accentColor: "",
-  fontScale: 1,
-  lineHeight: 1.5,
-  sectionSpacing: 12,
-};
+import React, { memo } from "react";
+import {
+  CV_TEMPLATE_STYLES,
+  getCvStyle,
+  getSoftColor,
+  getStyleAccent,
+  getTemplateSettings,
+  normalizeCvStyleId,
+} from "../lib/cvStyles.js";
 
 const SECTION_LABELS = {
   resumen: "Resumen",
@@ -85,43 +20,6 @@ const skillBuckets = {
   Frameworks: ["react", "next", "django", "flask", "express", "vue", "angular", ".net", "spring", "laravel"],
   Tools: ["git", "docker", "aws", "linux", "mysql", "postgres", "sql", "vite", "webpack", "figma", "postman", "node"],
 };
-
-export function normalizeCvStyleId(styleId) {
-  return CV_TEMPLATE_STYLES.some((style) => style.id === styleId) ? styleId : DEFAULT_CV_STYLE_ID;
-}
-
-export function getCvStyle(styleId) {
-  const safeStyleId = normalizeCvStyleId(styleId);
-  return CV_TEMPLATE_STYLES.find((style) => style.id === safeStyleId) ?? CV_TEMPLATE_STYLES[0];
-}
-
-export function getTemplateSettings(data, styleId) {
-  const settings = data?.templateSettings?.[styleId] ?? {};
-  return {
-    ...DEFAULT_TEMPLATE_SETTINGS,
-    ...settings,
-  };
-}
-
-function getStyleAccent(style, settings) {
-  return settings.accentColor || style.accent;
-}
-
-function getSoftColor(accentColor) {
-  if (!accentColor || !accentColor.startsWith("#") || ![4, 7].includes(accentColor.length)) return "#f3f4f6";
-
-  const normalized =
-    accentColor.length === 4
-      ? `#${accentColor[1]}${accentColor[1]}${accentColor[2]}${accentColor[2]}${accentColor[3]}${accentColor[3]}`
-      : accentColor;
-  const hex = normalized.slice(1);
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
-  const mix = (channel) => Math.round(channel * 0.12 + 255 * 0.88);
-
-  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
-}
 
 function formatMes(value) {
   if (!value) return "";
@@ -409,7 +307,9 @@ function PhotoLayout({ data }) {
   );
 }
 
-export function CvDocument({ data, styleId, paperId = "cv-paper" }) {
+// [react-best-practices: rerender-memo] Memoizado: combinado con useDeferredValue
+// en el preview en vivo, evita re-renderizar todo el CV en cada tecla.
+function CvDocumentImpl({ data, styleId, paperId = "cv-paper" }) {
   const style = getCvStyle(styleId ?? data?.templateStyle);
   const settings = getTemplateSettings(data, style.id);
   const accent = getStyleAccent(style, settings);
@@ -442,309 +342,7 @@ export function CvDocument({ data, styleId, paperId = "cv-paper" }) {
   );
 }
 
-export function getCvPrintStyles(styleId) {
-  const style = getCvStyle(styleId);
-
-  return `
-    <style>
-      @page { size: A4; margin: 0; }
-      body {
-        margin: 0;
-        background: #ffffff;
-        color: #111111;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-      ${getCvCss(style.id)}
-    </style>
-  `;
-}
-
-export function getCvCss(styleId = DEFAULT_CV_STYLE_ID) {
-  const style = getCvStyle(styleId);
-
-  return `
-    .az-cv-paper {
-      --az-cv-accent: ${style.accent};
-      --az-cv-soft: ${style.soft};
-      --az-cv-font: ${style.font};
-      box-sizing: border-box;
-      width: min(210mm, 100%);
-      min-height: auto;
-      margin: 0 auto;
-      padding: clamp(18px, 4vw, 14mm);
-      background: #ffffff;
-      color: #111111;
-      font-family: var(--az-cv-font);
-      font-size: calc(11.5px * var(--az-cv-font-scale, 1));
-      line-height: var(--az-cv-line-height, 1.5);
-    }
-    .az-cv-paper * { box-sizing: border-box; }
-    .az-cv-header {
-      border-bottom: 1px solid #111111;
-      padding-bottom: 10px;
-      margin-bottom: 12px;
-    }
-    .az-cv-name {
-      font-size: 28px;
-      font-weight: 800;
-      line-height: 1.05;
-      overflow-wrap: anywhere;
-    }
-    .az-cv-contact {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px 12px;
-      margin-top: 7px;
-      color: #333333;
-      overflow-wrap: anywhere;
-    }
-    .az-cv-section {
-      margin-top: var(--az-cv-section-spacing, 12px);
-    }
-    .az-cv-section-title {
-      margin-bottom: 6px;
-      color: #111111;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-    }
-    .az-cv-text {
-      white-space: pre-line;
-      overflow-wrap: anywhere;
-    }
-    .az-cv-items {
-      display: grid;
-      gap: 10px;
-    }
-    .az-cv-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 14px;
-    }
-    .az-cv-left {
-      flex: 1;
-      min-width: 0;
-    }
-    .az-cv-role {
-      font-weight: 800;
-      overflow-wrap: anywhere;
-    }
-    .az-cv-sub {
-      margin-top: 2px;
-      color: #333333;
-    }
-    .az-cv-date {
-      color: #333333;
-      white-space: nowrap;
-    }
-    .az-cv-bullets {
-      margin: 6px 0 0;
-      padding-left: 18px;
-    }
-    .az-cv-bullets li {
-      margin: 3px 0;
-      overflow-wrap: anywhere;
-    }
-    .az-cv-skills-grid {
-      display: grid;
-      grid-template-columns: 110px 1fr;
-      gap: 6px 12px;
-    }
-    .az-cv-skills-label {
-      font-weight: 800;
-    }
-    .az-cv-skills-items {
-      min-width: 0;
-      overflow-wrap: anywhere;
-    }
-    .az-cv-skill-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-    .az-cv-skill-chips span {
-      border: 1px solid color-mix(in srgb, var(--az-cv-accent) 40%, #ffffff);
-      border-radius: 6px;
-      padding: 3px 7px;
-      background: var(--az-cv-soft);
-      color: #111111;
-    }
-    .az-cv-details {
-      margin-top: 6px;
-    }
-    .az-cv-avoid-break {
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
-    .az-cv-executive .az-cv-header {
-      border-bottom: 4px solid var(--az-cv-accent);
-    }
-    .az-cv-executive .az-cv-section-title {
-      color: var(--az-cv-accent);
-      border-bottom: 1px solid color-mix(in srgb, var(--az-cv-accent) 35%, #ffffff);
-      padding-bottom: 3px;
-    }
-    .az-cv-technical {
-      padding: 0;
-    }
-    .az-cv-sidebar-layout {
-      display: grid;
-      grid-template-columns: 62mm 1fr;
-      min-height: 297mm;
-    }
-    .az-cv-sidebar {
-      padding: 14mm 9mm;
-      background: var(--az-cv-soft);
-      border-right: 4px solid var(--az-cv-accent);
-    }
-    .az-cv-sidebar .az-cv-name {
-      color: var(--az-cv-accent);
-      font-size: 24px;
-    }
-    .az-cv-sidebar .az-cv-contact {
-      display: grid;
-      gap: 6px;
-      margin-top: 12px;
-    }
-    .az-cv-sidebar .az-cv-section {
-      margin-top: 18px;
-    }
-    .az-cv-main {
-      padding: 14mm 12mm;
-    }
-    .az-cv-modern-header {
-      display: grid;
-      grid-template-columns: 1.1fr 1fr;
-      gap: 14px;
-      align-items: end;
-      padding: 13px 16px;
-      background: var(--az-cv-soft);
-      border-left: 6px solid var(--az-cv-accent);
-      margin-bottom: 14px;
-    }
-    .az-cv-kicker {
-      color: var(--az-cv-accent);
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-    .az-cv-modern .az-cv-section-title {
-      color: var(--az-cv-accent);
-    }
-    .az-cv-photo-header {
-      display: grid;
-      grid-template-columns: 34mm 1fr;
-      gap: 14px;
-      align-items: center;
-      padding-bottom: 13px;
-      border-bottom: 5px solid var(--az-cv-accent);
-      margin-bottom: 12px;
-    }
-    .az-cv-photo-frame {
-      width: 31mm;
-      aspect-ratio: 1;
-      border-radius: 8px;
-      overflow: hidden;
-      display: grid;
-      place-items: center;
-      background: var(--az-cv-soft);
-      border: 2px solid var(--az-cv-accent);
-      color: var(--az-cv-accent);
-      font-size: 26px;
-      font-weight: 800;
-    }
-    .az-cv-photo-frame img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .az-cv-photo-headline {
-      min-width: 0;
-    }
-    .az-cv-photo .az-cv-section-title {
-      color: var(--az-cv-accent);
-    }
-    .az-cv-compact {
-      padding: 11mm;
-      font-size: 10.8px;
-      line-height: 1.38;
-    }
-    .az-cv-compact .az-cv-name {
-      font-size: 24px;
-    }
-    .az-cv-compact .az-cv-section {
-      margin-top: 8px;
-    }
-    .az-cv-compact .az-cv-items {
-      gap: 7px;
-    }
-    @media screen {
-      .az-cv-paper {
-        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.14);
-      }
-    }
-    @media screen and (max-width: 760px) {
-      .az-cv-paper {
-        font-size: 10.8px;
-      }
-      .az-cv-name {
-        font-size: 23px;
-      }
-      .az-cv-contact {
-        gap: 3px 8px;
-      }
-      .az-cv-row {
-        display: grid;
-        gap: 3px;
-      }
-      .az-cv-date {
-        white-space: normal;
-      }
-      .az-cv-skills-grid {
-        grid-template-columns: 1fr;
-        gap: 3px;
-      }
-      .az-cv-sidebar-layout {
-        grid-template-columns: 1fr;
-        min-height: auto;
-      }
-      .az-cv-sidebar {
-        border-right: 0;
-        border-bottom: 4px solid var(--az-cv-accent);
-        padding: 18px;
-      }
-      .az-cv-main {
-        padding: 18px;
-      }
-      .az-cv-modern-header {
-        grid-template-columns: 1fr;
-        align-items: start;
-      }
-      .az-cv-photo-header {
-        grid-template-columns: 1fr;
-        justify-items: start;
-      }
-      .az-cv-photo-frame {
-        width: 96px;
-      }
-    }
-    @media print {
-      .az-cv-paper {
-        width: 210mm;
-        min-height: 297mm;
-        padding: 14mm;
-        box-shadow: none;
-      }
-      .az-cv-technical {
-        padding: 0;
-      }
-    }
-  `;
-}
+export const CvDocument = memo(CvDocumentImpl);
 
 function TemplateCard({ template, selected, onSelect }) {
   return (
@@ -791,145 +389,47 @@ function TemplateCard({ template, selected, onSelect }) {
   );
 }
 
-function readImageAsDataUrl(file, onDone) {
+// [storage-fix] Redimensiona y comprime la foto antes de guardarla.
+// Las fotos viven en localStorage como dataURL; sin comprimir una sola
+// imagen puede ocupar varios MB y reventar la cuota (~5MB) del navegador.
+const PHOTO_MAX_SIZE = 480; // px del lado mayor
+const PHOTO_QUALITY = 0.82;
+
+function compressImage(dataUrl, onDone) {
+  const img = new Image();
+  img.onload = () => {
+    const scale = Math.min(1, PHOTO_MAX_SIZE / Math.max(img.width, img.height));
+    const width = Math.round(img.width * scale);
+    const height = Math.round(img.height * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    // Fondo blanco para evitar que PNG transparente se vuelva negro en JPEG
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+
+    onDone(canvas.toDataURL("image/jpeg", PHOTO_QUALITY));
+  };
+  img.onerror = () => onDone(dataUrl); // si falla, usa el original
+  img.src = dataUrl;
+}
+
+function readImageAsDataUrl(file, onDone, onError) {
   if (!file) return;
   if (!file.type.startsWith("image/")) {
-    alert("Selecciona una imagen valida.");
+    onError?.("Selecciona una imagen válida.");
     return;
   }
 
   const reader = new FileReader();
-  reader.onload = () => onDone(String(reader.result ?? ""));
+  reader.onload = () => compressImage(String(reader.result ?? ""), onDone);
   reader.readAsDataURL(file);
 }
 
-function getLocalizedValue(value) {
-  if (typeof value === "string") return value;
-  if (value?.localized && typeof value.localized === "object") {
-    return Object.values(value.localized)[0] ?? "";
-  }
-  return "";
-}
-
-function mergeLinkedInPayload(prev, payload) {
-  const basicInfo = payload?.basicInfo ?? payload?.profile ?? payload ?? {};
-  const firstName = getLocalizedValue(basicInfo.firstName) || basicInfo.firstName || "";
-  const lastName = getLocalizedValue(basicInfo.lastName) || basicInfo.lastName || "";
-  const fullName = basicInfo.name || [firstName, lastName].filter(Boolean).join(" ");
-  const headline = getLocalizedValue(basicInfo.headline) || basicInfo.headline || "";
-  const profileUrl = basicInfo.profileUrl || basicInfo.vanityName || payload?.profileUrl || "";
-  const email = basicInfo.email || basicInfo.emailAddress || payload?.email || "";
-  const photoCandidate = basicInfo.profilePicture || basicInfo.picture || basicInfo.pictureUrl || "";
-  const photo = typeof photoCandidate === "string" ? photoCandidate : "";
-  const currentPosition = payload?.primaryCurrentPosition ?? payload?.currentPosition;
-  const education = payload?.mostRecentEducation ?? payload?.education;
-
-  const next = {
-    ...prev,
-    personal: {
-      ...prev.personal,
-      nombreCompleto: fullName || prev.personal?.nombreCompleto || "",
-      correo: email || prev.personal?.correo || "",
-      linkedin: profileUrl || prev.personal?.linkedin || "",
-      foto: photo || prev.personal?.foto || "",
-    },
-    resumen: headline || prev.resumen || "",
-  };
-
-  if (currentPosition?.title || currentPosition?.companyName) {
-    next.experiencia = [
-      {
-        puesto: currentPosition.title || "",
-        empresa: currentPosition.companyName || currentPosition.company?.name || "",
-        ciudad: currentPosition.location || "",
-        fechaInicio: "",
-        fechaFin: "",
-        actualmente: true,
-        logros: [headline || ""],
-      },
-      ...(Array.isArray(prev.experiencia) ? prev.experiencia : []),
-    ];
-  }
-
-  if (education?.schoolName || education?.degreeName) {
-    next.educacion = [
-      {
-        grado: education.degreeName || education.degree || "",
-        institucion: education.schoolName || education.school || "",
-        ciudad: "",
-        fechaInicio: "",
-        fechaFin: "",
-        detalles: education.fieldOfStudy || "",
-      },
-      ...(Array.isArray(prev.educacion) ? prev.educacion : []),
-    ];
-  }
-
-  return next;
-}
-
-function LinkedInImporter({ onDataChange }) {
-  const [profileUrl, setProfileUrl] = useState("");
-  const [status, setStatus] = useState("");
-
-  const handleImport = async () => {
-    const url = profileUrl.trim();
-    if (!url) {
-      setStatus("Pega la URL del perfil antes de importar.");
-      return;
-    }
-
-    setStatus("Conectando con el importador autorizado...");
-
-    try {
-      const response = await fetch("/api/linkedin/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileUrl: url }),
-      });
-
-      if (!response.ok) {
-        throw new Error("El backend de LinkedIn no esta configurado.");
-      }
-
-      const payload = await response.json();
-      onDataChange((prev) => mergeLinkedInPayload(prev, payload));
-      setStatus("Datos importados desde LinkedIn.");
-    } catch (error) {
-      console.error(error);
-      setStatus("Listo para conectar: requiere un backend OAuth/API de LinkedIn autorizado. No se hace scraping desde el navegador.");
-    }
-  };
-
-  return (
-    <div className="rounded-lg border border-base-300 bg-base-100 p-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h3 className="font-semibold">Sincronizacion con LinkedIn</h3>
-          <p className="text-xs opacity-70">
-            Usa OAuth/API oficial desde backend y trae solo datos permitidos por el usuario.
-          </p>
-        </div>
-        <span className="badge badge-outline">API</span>
-      </div>
-
-      <div className="mt-3 grid gap-2">
-        <input
-          className="input input-sm input-bordered w-full"
-          placeholder="https://www.linkedin.com/in/usuario"
-          value={profileUrl}
-          onChange={(event) => setProfileUrl(event.target.value)}
-        />
-        <button className="btn btn-sm btn-outline w-full" onClick={handleImport}>
-          Importar desde LinkedIn
-        </button>
-        {status ? <p className="text-xs opacity-70 break-words">{status}</p> : null}
-      </div>
-    </div>
-  );
-}
-
-export default function StyleCV({ value, onChange, data, onDataChange }) {
+export default function StyleCV({ value, onChange, data, onDataChange, notify = () => {} }) {
   const activeStyleId = normalizeCvStyleId(value);
   const activeStyle = getCvStyle(activeStyleId);
   const settings = getTemplateSettings(data, activeStyleId);
@@ -1083,14 +583,12 @@ export default function StyleCV({ value, onChange, data, onDataChange }) {
                 accept="image/*"
                 className="file-input file-input-sm file-input-bordered w-full"
                 onChange={(event) => {
-                  readImageAsDataUrl(event.target.files?.[0], updatePhoto);
+                  readImageAsDataUrl(event.target.files?.[0], updatePhoto, (msg) => notify(msg, "warning"));
                   event.target.value = "";
                 }}
               />
             </div>
           </div>
-
-          <LinkedInImporter onDataChange={onDataChange} />
         </div>
       </div>
 
@@ -1102,7 +600,6 @@ export default function StyleCV({ value, onChange, data, onDataChange }) {
           </div>
           <div className="badge badge-outline justify-self-start sm:justify-self-end">PDF listo</div>
         </div>
-        <style>{getCvCss(activeStyleId)}</style>
         <div className="overflow-auto rounded-lg bg-base-300 p-2 sm:p-4">
           <CvDocument data={data} styleId={activeStyleId} paperId="cv-template-preview" />
         </div>

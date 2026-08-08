@@ -1,8 +1,24 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
-/* ✅ Deja que DaisyUI controle colores/temas.
-   No uses :root con background fijo ni color-scheme aquí. */
+/*
+  [tailwindcss-skill: CSS-first configuration]
+  Tokens de diseño compartidos entre el editor y el CV.
+  @theme permite usar estas variables como utilidades de Tailwind (ej: text-cv-paper).
+*/
+@theme {
+  --font-cv: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+    "Apple Color Emoji", "Segoe UI Emoji";
+
+  --color-cv-paper: #ffffff;
+  --color-cv-ink: #111111;
+  --color-cv-muted: #333333;
+
+  --spacing-cv-page: 14mm;
+  --spacing-cv-section: 12px;
+}
+
+/* ✅ DaisyUI controla colores y temas — no sobreescribir color-scheme aquí */
 html,
 body {
   height: 100%;
@@ -12,10 +28,8 @@ body {
   margin: 0;
 }
 
-/* (Opcional) Ajuste suave de tipografía */
 :root {
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial,
-    "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: var(--font-cv);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
